@@ -16,13 +16,16 @@ start_time = time.time()
 
 class Node:
     def __init__(self,type):
-        self.max = type == "max" ? True : False
-        self.score = self.max ? float('-Inf') : float('Inf')
+        # self.max = type == "max" ? True : False
+        # self.score = self.max ? float('-Inf') : float('Inf')
+        self.score = float('-Inf')
         self.board = [-1]*31
         self.board[-4+15] = 3
         self.rt = float('-Inf')
         self.lt = float('-Inf')
         self.children = []
+        self.my_weights = range(1,11)
+        self.their_weights = range(1,11)
 
     def __repr__(self):
         return "Max: %s\tScore: %s" % (repr(self.max), repr(self.score))
@@ -80,14 +83,29 @@ class Node:
 def usage():
     sys.stdout.write( __doc__ % os.path.basename(sys.argv[0]))
 
-## from http://en.wikipedia.org/wiki/Alpha-beta_pruning
+def make_babies(node):
+    for pos in node.board:
+        pos -= 15
+        # make the move
+        for kg in node.my_weights:
+            # transfer state over
+            child = Node
+            child.board = node.board
+            child.my_weights = node.my_weights
+            child.their_weights = node.their_weights
+            child.move(kg, pos)
+            # only claim children if they're successful :)
+            if !child.did_tip():
+                node.children.append( child )
 
-function alphabeta(n, depth, a, b)         
+## from http://en.wikipedia.org/wiki/Alpha-beta_pruning
+def alphabeta(n, depth, a, b):
     ## b represents previous player best choice - doesn't want it if a would worsen it
-    if  depth == 0 or n.did_tip()
-        return n.score
+    n.children = make_babies(n)
+    if  depth == 0 or n.children == []
+        return n.score,n
     for child in n.children:
-        a = max(a, -alphabeta(child, depth-1, -b, -a))
+        a = max(a, -alphabeta(child, depth-1, -b, -a)[0])
         ## use symmetry, -b becomes subsequently pruned a
         if b <= a
             break ## Beta cut-off
