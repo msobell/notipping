@@ -15,10 +15,15 @@ import math
 start_time = time.time()
 
 class Node:
-    def __init__(self,type):
-        # self.max = type == "max" ? True : False
-        # self.score = self.max ? float('-Inf') : float('Inf')
-        self.score = float('-Inf')
+    def __init__(self,max):
+        if max:
+            self.max = True
+        else:
+            self.max = False
+        if self.max:
+            self.score = float('-Inf')
+        else:
+            self.score = float('Inf')
         self.board = [-1]*31
         self.board[-4+15] = 3
         self.rt = float('-Inf')
@@ -33,12 +38,30 @@ class Node:
     def __cmp__(self,n2):
         return self.score - n2.score
 
-    def p():
+    # simple scoring
+    def do_score(self):
+        self.score = len(self.children)
+
+    def p(self):
         for kg in self.board:
             print repr(kg) + " ",
         print ""
 
-    def tip():
+    def move(self,weight,pos):
+        try:
+            if self.max:
+                self.my_weights.remove(weight)
+            else:
+                self.their_weights.remove(weight)
+            self.board[pos] = weight
+        except ValueError:
+            if self.max:
+                print self.my_weights
+            else:
+                print self.their_weights
+            sys.exit(1)
+        
+    def tip(self):
         
         # formula to calulate torque:
         # in1 and out1 calculates torque on lever at -1
@@ -74,42 +97,53 @@ class Node:
         self.rt = in1 - out1
         self.lt = out3 - in3
         
-    def did_tip():
-        if self.rt == float('-Inf') || self.lt == float('-Inf'):
+    def did_tip(self):
+        if self.rt == float('-Inf') or self.lt == float('-Inf'):
             self.tip()
-        return self.lt > 0 || self.rt > 0
+        return self.lt > 0 or self.rt > 0
 
 
 def usage():
     sys.stdout.write( __doc__ % os.path.basename(sys.argv[0]))
 
-def make_babies(node):
-    for pos in node.board:
+def make_babies(parent):
+    for pos in parent.board:
         pos -= 15
-        # make the move
-        for kg in node.my_weights:
-            # transfer state over
-            child = Node
-            child.board = node.board
-            child.my_weights = node.my_weights
-            child.their_weights = node.their_weights
-            child.move(kg, pos)
+        for kg in parent.my_weights:
+            # inherit from parents
+            child = Node(not parent.max)
+            child.board = parent.board
+            child.my_weights = parent.my_weights
+            child.their_weights = parent.their_weights
+            # make the move :-*
+            try:
+                child.move(kg,pos)
+            except:
+                for w in child.my_weights:
+                    print repr(w) + " "
+                print ""
+                for t in child.their_weights:
+                    print repr(t) + " "
+                print "Trying to remove " + repr(kg) + " from " + repr(pos)
             # only claim children if they're successful :)
-            if !child.did_tip():
-                node.children.append( child )
+            if not child.did_tip():
+                parent.children.append( child )
+    parent.do_score()
 
 ## from http://en.wikipedia.org/wiki/Alpha-beta_pruning
 def alphabeta(n, depth, a, b):
     ## b represents previous player best choice - doesn't want it if a would worsen it
-    n.children = make_babies(n)
-    if  depth == 0 or n.children == []
+    make_babies(n)
+    if  depth == 0 or n.children == []:
         return n.score,n
     for child in n.children:
-        a = max(a, -alphabeta(child, depth-1, -b, -a)[0])
-        ## use symmetry, -b becomes subsequently pruned a
-        if b <= a
+        t = -alphabeta(child, depth-1, -b, -a)
+        a = max(a, t[0])
+        node = t[1]
+## use symmetry, -b becomes subsequently pruned a
+        if b <= a:
             break ## Beta cut-off
-    return a
+    return a,node
 
 if __name__ == "__main__":
 
@@ -117,6 +151,6 @@ if __name__ == "__main__":
         usage()
         sys.exit(1)
 
-    alphabeta(root, 10, float('-Inf'), float('Inf') )
+    root = Node(True) # create a max node
 
-    
+    alphabeta( root, 10, float('-Inf'), float('Inf') )
