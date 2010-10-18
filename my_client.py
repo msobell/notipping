@@ -17,7 +17,7 @@ default_board = [0]*31
 default_board[-4+15] = 3
 
 class GameState:
-    def __init__(self,max=True,board=default_board,my_weights=range(1,11),their_weights=range(1,11)):
+    def __init__(self,max=True,board=default_board,my_weights=range(1,11),their_weights=range(1,11),first_move=""):
         if max:
             self.max = True
         else:
@@ -32,17 +32,16 @@ class GameState:
         self.children = []
         self.my_weights = my_weights
         self.their_weights = their_weights
+        self.first_move = first_move
 
     def __repr__(self):
         return "Max: %s\tScore: %s\nBoard: %s\nMy Weights: %s\nTheir Weights: %s" % \
             (repr(self.max), repr(self.score), repr(self.board), repr(self.my_weights), repr(self.their_weights) )
 
-    def __cmp__(self,n2):
-        return self.score - n2.score
-
     # simple scoring
     def do_score(self):
-        self.score = len(self.children)
+        self.score = sum(self.my_weights) - sum(self.their_weights)
+        # print "Score: ",self.score,"\n",self.my_weights,"\n",self.their_weights
 
     def p(self):
         for kg in self.board:
@@ -126,40 +125,60 @@ def make_babies(parent):
         for kg in current_weights:
             # inherit from parents
             c = GameState(not parent.max, board = parent.board + [],\
-                         my_weights = parent.my_weights + [],\
-                         their_weights = parent.their_weights + [])
+                              my_weights = parent.my_weights + [],\
+                              their_weights = parent.their_weights + [])
             # make the move :-*
+            if parent.first_move == "":
+                c.first_move = repr(kg) + "," + repr(pos-15)
+            else:
+                c.first_move = parent.first_move
             c.move_weight(kg,pos)
             # only claim children if they're successful :)
             if not c.did_tip():
                 parent.children.append( c )
     parent.do_score()
 
-## from http://en.wikipedia.org/wiki/Alpha-beta_pruning
+def remove_weights(parent):
+    # new tree now that we're removing
+    parent.children = []
+    for kg in parent.board:
+        c = GameState(not parent.max, board = parent.board + [],\
+                          my_weights = parent.my_weights + [],\
+                          their_weights = parent.their_weights + [])
+        # make the move :-*
+        if parent.first_move == "":
+            c.first_move = repr(kg) + "," + repr(pos)
+        else:
+            c.first_move = parent.first_move
+        c.move_weight(kg,pos)
+        # only claim children if they're successful :)
+        if not c.did_tip():
+            parent.children.append( c )
+
 def alphabeta(n, depth, a, b):
     ## b represents previous player best choice - doesn't want it if a would worsen it
     make_babies(n)
     print len(n.children)
-    if  depth == 0 or len(n.children) == 0:
-        return n.score
+    if (depth == 0 or len(n.children) == 0):
+        return (n.score,n)
     if n.max:
         v = a
         for child in n.children:
-            t = alphabeta(child, depth-1, v, b)
+            t,node = alphabeta(child, depth-1, v, b)
             if t > v:
                 v = t
             if v > b:
-                return b
-        return v
+                return b,node
+        return v,n
     else:
         v = b
         for child in n.children:
-            t = alphabeta(child, depth-1, a, v)
+            t,node = alphabeta(child, depth-1, a, v)
             if t < v:
                 v = t
             if v < a:
-                return a
-        return v
+                return a,node
+        return v,n
 
 if __name__ == "__main__":
 
@@ -167,7 +186,12 @@ if __name__ == "__main__":
         usage()
         sys.exit(1)
 
-    root = GameState(False) # create a max node
+    if sys.argv[1] == "True":
+        print "True"
+        root = GameState(True)
+    else:
+        print "False"
+        root = GameState(False)
 
-    a = alphabeta( root, 3, float('-Inf'), float('Inf') )
-    print a
+    a = alphabeta( root, 20, float('-Inf'), float('Inf') )
+    print a[1].first_move
