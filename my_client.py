@@ -158,6 +158,5 @@ if __name__ == "__main__":
 
     root = GameState(False) # create a max node
 
-    a, node = alphabeta( root, 3, float('-Inf'), float('Inf') )
+    a = alphabeta( root, 3, float('-Inf'), float('Inf') )
     print a
-    print node
