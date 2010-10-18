@@ -132,7 +132,6 @@ def make_babies(parent):
             c.move_weight(kg,pos)
             # only claim children if they're successful :)
             if not c.did_tip():
-                print c
                 parent.children.append( c )
     parent.do_score()
 
@@ -140,15 +139,27 @@ def make_babies(parent):
 def alphabeta(n, depth, a, b):
     ## b represents previous player best choice - doesn't want it if a would worsen it
     make_babies(n)
-    if  depth == 0 or n.children == []:
+    print len(n.children)
+    if  depth == 0 or len(n.children) == 0:
         return n.score
-    for child in n.children:
-        t = -alphabeta(child, depth-1, -b, -a)
-        a = max(a, t)
-## use symmetry, -b becomes subsequently pruned a
-        if b <= a:
-            break ## Beta cut-off
-    return a
+    if n.max:
+        v = a
+        for child in n.children:
+            t = alphabeta(child, depth-1, v, b)
+            if t > v:
+                v = t
+            if v > b:
+                return b
+        return v
+    else:
+        v = b
+        for child in n.children:
+            t = alphabeta(child, depth-1, a, v)
+            if t < v:
+                v = t
+            if v < a:
+                return a
+        return v
 
 if __name__ == "__main__":
 
