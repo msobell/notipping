@@ -17,7 +17,7 @@ default_board = [0]*31
 default_board[-4+15] = 3
 
 class GameState:
-    def __init__(self,max=True,board=default_board,my_weights=range(1,11),their_weights=range(1,11),first_move=""):
+    def __init__(self,max=True,board=default_board,my_weights=range(1,11),their_weights=range(1,11),first_move=None,parent_node=None):
         if max:
             self.max = True
         else:
@@ -33,6 +33,7 @@ class GameState:
         self.my_weights = my_weights
         self.their_weights = their_weights
         self.first_move = first_move
+        self.parent_node = parent_node
 
     def __repr__(self):
         return "Max: %s\tScore: %s\nBoard: %s\nMy Weights: %s\nTheir Weights: %s" % \
@@ -40,7 +41,10 @@ class GameState:
 
     # simple scoring
     def do_score(self):
-        self.score = sum(self.my_weights) - sum(self.their_weights)
+        if self.max:
+            self.score = sum(self.their_weights) - sum(self.my_weights)
+        else:
+            self.score = sum(self.my_weights) - sum(self.their_weights)
         # print "Score: ",self.score,"\n",self.my_weights,"\n",self.their_weights
 
     def p(self):
@@ -125,10 +129,10 @@ def make_babies(parent):
         for kg in current_weights:
             # inherit from parents
             c = GameState(not parent.max, board = parent.board + [],\
-                              my_weights = parent.my_weights + [],\
-                              their_weights = parent.their_weights + [])
+                          my_weights = parent.my_weights + [],\
+                          their_weights = parent.their_weights + [])
             # make the move :-*
-            if parent.first_move == "":
+            if parent.first_move is None:
                 c.first_move = repr(kg) + "," + repr(pos-15)
             else:
                 c.first_move = parent.first_move
@@ -136,7 +140,7 @@ def make_babies(parent):
             # only claim children if they're successful :)
             if not c.did_tip():
                 parent.children.append( c )
-    parent.do_score()
+                c.parent_node = parent
 
 def remove_weights(parent):
     # new tree now that we're removing
@@ -160,6 +164,7 @@ def alphabeta(n, depth, a, b):
     make_babies(n)
     print len(n.children)
     if (depth == 0 or len(n.children) == 0):
+        n.do_score()
         return (n.score,n)
     if n.max:
         v = a
@@ -168,8 +173,8 @@ def alphabeta(n, depth, a, b):
             if t > v:
                 v = t
             if v > b:
-                return b,node
-        return v,n
+                return b,child
+        return v,node
     else:
         v = b
         for child in n.children:
@@ -177,8 +182,8 @@ def alphabeta(n, depth, a, b):
             if t < v:
                 v = t
             if v < a:
-                return a,node
-        return v,n
+                return a,child
+        return v,node
 
 if __name__ == "__main__":
 
@@ -186,12 +191,10 @@ if __name__ == "__main__":
         usage()
         sys.exit(1)
 
-    if sys.argv[1] == "True":
-        print "True"
-        root = GameState(True)
-    else:
-        print "False"
-        root = GameState(False)
+    root = GameState(True)
 
-    a = alphabeta( root, 20, float('-Inf'), float('Inf') )
+    a = alphabeta( root, int(sys.argv[1]), float('-Inf'), float('Inf') )
+    print a
     print a[1].first_move
+
+    print round(time.time() - start_time)
