@@ -1,0 +1,11 @@
+support at -3 and -1, 3 kg block at -4
+3 kg at 0, effectively (due to board)
+torque at a given point:
+ out_torque(dw) = d * w [ distance from closest support * weight ]
+ in_torque(dw) = 
+
+ out_torque - in_torque (calc for each support, if both same sign, tip).
+ if out_torque on left post is positive, tip. if in_torque on right post is neg, tip. (?)
+
+Better pruning! see adversarysearch.pdf
+Effective fanout is only half of what it would be (with pruning?)
