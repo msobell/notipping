@@ -8,13 +8,48 @@ import os
 import sys
 import time
 import math
+import socket
+import re
 
-## Infinity = ()
-## Negative Infinity = None
-
+MSGLEN = 1024
 start_time = time.time()
 default_board = [0]*31
 default_board[-4+15] = 3
+
+class MySocket:
+# from http://docs.python.org/howto/sockets.html
+    '''demonstration class only
+      - coded for clarity, not efficiency
+    '''
+
+    def __init__(self, sock=None):
+        if sock is None:
+            self.sock = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+        else:
+            self.sock = sock
+
+    def connect(self, host, port):
+        self.sock.connect((host, port))
+
+    def mysend(self, msg):
+        totalsent = 0
+        sent = self.sock.send(msg + "\r\n")
+        if sent == 0:
+            raise RuntimeError("socket connection broken")
+        
+    def myrecv(self):
+        while 1:
+            data = self.sock.recv(1024)
+            if not data or data == "Bye" or "\n" in data: break
+        print 'Received',repr(data)
+        return data
+
+    def close(self):
+        if self.sock is None:
+            pass
+        else:
+            self.sock.close()
 
 class GameState:
     def __init__(self,max=True,board=default_board,my_weights=range(1,11),their_weights=range(1,11),first_move=None,parent_node=None):
@@ -132,7 +167,7 @@ def make_babies(parent):
                           my_weights = parent.my_weights + [],\
                           their_weights = parent.their_weights + [])
             # make the move :-*
-            if parent.first_move is None:
+            if parent.first_move is None and c.max:
                 c.first_move = repr(kg) + "," + repr(pos-15)
             else:
                 c.first_move = parent.first_move
@@ -162,7 +197,7 @@ def remove_weights(parent):
 def alphabeta(n, depth, a, b):
     ## b represents previous player best choice - doesn't want it if a would worsen it
     make_babies(n)
-    print len(n.children)
+    # print len(n.children)
     if (depth == 0 or len(n.children) == 0):
         n.do_score()
         return (n.score,n)
@@ -185,16 +220,90 @@ def alphabeta(n, depth, a, b):
                 return a,child
         return v,node
 
+def get_move(root=GameState(True)):
+    a = alphabeta( root, 2, float('-Inf'), float('Inf') )
+    return a[1]
+
+def parse_data(data):
+    # ADD|3,-4 10,-1|in=-6.0,out=-26.0
+    mode = re.match('(?<=|)\w+',data)
+    # take off beginning
+    data = data[len(mode.group(0))+1:]
+    data = data.split('|')[0]
+    tuples = data.split(' ')
+    this_board = [0]*31
+    for t in tuples:
+        t = t.split(',')
+        this_board[int(t[1])+15] = int(t[0])
+    all_used_weights = []
+    their_used_weights = []
+    their_weights_t = []
+    my_used_weights = []
+    for kg in this_board:
+        if kg > 0:
+            all_used_weights.append(kg)
+    try:
+        all_used_weights.remove(3) #for the initial weight
+    except:
+        pass
+    print "All used weights: ",all_used_weights #actually used_weights
+    # figure out what i've used
+    for i in range(1,11):
+        if i not in save_weights:
+            my_used_weights.append(i)
+    # remove those from all the used weights to find out
+    # what the opponent has used
+    print "My used weights: ",my_used_weights #actually used_weights
+    for kg in my_used_weights:
+        try:
+            all_used_weights.remove(kg)
+        except:
+            # this is for the very last weight that i just moved
+            # yes i know it's ugly.
+            pass
+
+    their_used_weights = all_used_weights
+    for i in range(1,11):
+        if i not in their_used_weights:
+            their_weights_t.append(i)
+
+    return GameState(True,board=this_board,\
+                         my_weights=save_weights + [],\
+                         their_weights=their_weights_t + [])
+
 if __name__ == "__main__":
 
     if len(sys.argv) != 2:
         usage()
         sys.exit(1)
 
-    root = GameState(True)
+    save_weights = range(1,11)
+    
+    tag = sys.argv[1]
 
-    a = alphabeta( root, int(sys.argv[1]), float('-Inf'), float('Inf') )
-    print a
-    print a[1].first_move
+    s = MySocket()
+    s.connect("localhost", 4445)
+    s.mysend(tag)
+    while 1:
+        data = s.myrecv()
+        if "REJECT" in data:
+            print "Oops..."
+            break
+        if "WIN" in data:
+            print "Woot."
+            break
+        if "LOSE" in data:
+            print ":'("
+            break
+        if "ADD" in data:
+            root = parse_data(data)
+            print root
+            print "Calculating..."
+            state = get_move(root)
+            s.mysend(state.first_move + "\n")
+            save_weights = state.my_weights
+            print "Sent result ", state.first_move
 
-    print round(time.time() - start_time)
+    s.close()
+
+    print "Time: ",round(time.time() - start_time)
