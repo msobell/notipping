@@ -143,7 +143,7 @@ def alphabeta(n, depth, a, b):
     if  depth == 0 or n.children == []:
         return n.score
     for child in n.children:
-        t = alphabeta(child, depth-1, -b, -a)
+        t = -alphabeta(child, depth-1, -b, -a)
         a = max(a, t)
 ## use symmetry, -b becomes subsequently pruned a
         if b <= a:
@@ -158,6 +158,6 @@ if __name__ == "__main__":
 
     root = GameState(False) # create a max node
 
-    a, node = alphabeta( root, 10, float('-Inf'), float('Inf') )
+    a, node = alphabeta( root, 3, float('-Inf'), float('Inf') )
     print a
     print node
