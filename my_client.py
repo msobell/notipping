@@ -13,9 +13,11 @@ import math
 ## Negative Infinity = None
 
 start_time = time.time()
+default_board = [0]*31
+default_board[-4+15] = 3
 
-class Node:
-    def __init__(self,max):
+class GameState:
+    def __init__(self,max=True,board=default_board,my_weights=range(1,11),their_weights=range(1,11)):
         if max:
             self.max = True
         else:
@@ -24,16 +26,16 @@ class Node:
             self.score = float('-Inf')
         else:
             self.score = float('Inf')
-        self.board = [-1]*31
-        self.board[-4+15] = 3
+        self.board = board
         self.rt = float('-Inf')
         self.lt = float('-Inf')
         self.children = []
-        self.my_weights = range(1,11)
-        self.their_weights = range(1,11)
+        self.my_weights = my_weights
+        self.their_weights = their_weights
 
     def __repr__(self):
-        return "Max: %s\tScore: %s" % (repr(self.max), repr(self.score))
+        return "Max: %s\tScore: %s\nBoard: %s\nMy Weights: %s\nTheir Weights: %s" % \
+            (repr(self.max), repr(self.score), repr(self.board), repr(self.my_weights), repr(self.their_weights) )
 
     def __cmp__(self,n2):
         return self.score - n2.score
@@ -47,19 +49,24 @@ class Node:
             print repr(kg) + " ",
         print ""
 
-    def move(self,weight,pos):
+    def move_weight(self,weight,pos):
         try:
+            # print "Moving " + repr(weight) + " to " + repr(pos)
             if self.max:
                 self.my_weights.remove(weight)
             else:
                 self.their_weights.remove(weight)
-            self.board[pos] = weight
-        except ValueError:
-            if self.max:
-                print self.my_weights
+            if self.board[pos] > 0:
+                print "Error! Weight " + repr(self.board[pos]) + " already at " + repr(pos)
+                print repr(self.board)
+                sys.exit(1)
             else:
-                print self.their_weights
-            sys.exit(1)
+                self.board[pos] = weight
+        except ValueError:
+            print self
+            print weight
+            print pos
+            raise
         
     def tip(self):
         
@@ -107,27 +114,26 @@ def usage():
     sys.stdout.write( __doc__ % os.path.basename(sys.argv[0]))
 
 def make_babies(parent):
-    for pos in parent.board:
-        pos -= 15
-        for kg in parent.my_weights:
+    for pos in range(0,len(parent.board)):
+        if parent.board[pos] > 0:
+            continue
+        current_weights = []
+        if parent.max:
+            current_weights = parent.their_weights
+        else:
+            current_weights = parent.my_weights
+    
+        for kg in current_weights:
             # inherit from parents
-            child = Node(not parent.max)
-            child.board = parent.board
-            child.my_weights = parent.my_weights
-            child.their_weights = parent.their_weights
+            c = GameState(not parent.max, board = parent.board + [],\
+                         my_weights = parent.my_weights + [],\
+                         their_weights = parent.their_weights + [])
             # make the move :-*
-            try:
-                child.move(kg,pos)
-            except:
-                for w in child.my_weights:
-                    print repr(w) + " "
-                print ""
-                for t in child.their_weights:
-                    print repr(t) + " "
-                print "Trying to remove " + repr(kg) + " from " + repr(pos)
+            c.move_weight(kg,pos)
             # only claim children if they're successful :)
-            if not child.did_tip():
-                parent.children.append( child )
+            if not c.did_tip():
+                print c
+                parent.children.append( c )
     parent.do_score()
 
 ## from http://en.wikipedia.org/wiki/Alpha-beta_pruning
@@ -135,15 +141,14 @@ def alphabeta(n, depth, a, b):
     ## b represents previous player best choice - doesn't want it if a would worsen it
     make_babies(n)
     if  depth == 0 or n.children == []:
-        return n.score,n
+        return n.score
     for child in n.children:
-        t = -alphabeta(child, depth-1, -b, -a)
-        a = max(a, t[0])
-        node = t[1]
+        t = alphabeta(child, depth-1, -b, -a)
+        a = max(a, t)
 ## use symmetry, -b becomes subsequently pruned a
         if b <= a:
             break ## Beta cut-off
-    return a,node
+    return a
 
 if __name__ == "__main__":
 
@@ -151,6 +156,8 @@ if __name__ == "__main__":
         usage()
         sys.exit(1)
 
-    root = Node(True) # create a max node
+    root = GameState(False) # create a max node
 
-    alphabeta( root, 10, float('-Inf'), float('Inf') )
+    a, node = alphabeta( root, 10, float('-Inf'), float('Inf') )
+    print a
+    print node
