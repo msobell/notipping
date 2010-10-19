@@ -224,8 +224,17 @@ def get_move(root=GameState(True)):
     a = alphabeta( root, 2, float('-Inf'), float('Inf') )
     return a[1]
 
+def get_remove(root=GameState(True)):
+    a = alphabeta( root, 2, float('-Inf'), float('Inf') )
+    return a[1]
+
 def parse_data(data):
     # ADD|3,-4 10,-1|in=-6.0,out=-26.0
+    data = data.split('\n')[1]
+    for d in data:
+        if "ADD" in d:
+            data = d
+            break
     mode = re.match('(?<=|)\w+',data)
     # take off beginning
     data = data[len(mode.group(0))+1:]
@@ -282,7 +291,7 @@ if __name__ == "__main__":
     tag = sys.argv[1]
 
     s = MySocket()
-    s.connect("localhost", 4445)
+    s.connect("localhost", 44444)
     s.mysend(tag)
     while 1:
         data = s.myrecv()
@@ -300,6 +309,14 @@ if __name__ == "__main__":
             print root
             print "Calculating..."
             state = get_move(root)
+            s.mysend(state.first_move + "\n")
+            save_weights = state.my_weights
+            print "Sent result ", state.first_move
+        if "REMOVE" in data:
+            root = parse_data(data)
+            print root
+            print "Calculating..."
+            state = get_remove(root)
             s.mysend(state.first_move + "\n")
             save_weights = state.my_weights
             print "Sent result ", state.first_move
